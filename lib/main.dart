@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:developer';
 
 import 'package:feedback_flutter_sdk/feedback_flutter_sdk.dart';
@@ -50,6 +49,7 @@ class _MyAppState extends State<MyApp> {
         PisanoConfig.feedbackUrl,
         PisanoConfig.eventUrl,
         debugLogging: PisanoConfig.debugLogging,
+        code: PisanoConfig.code,
       );
 
       setState(() {
@@ -351,7 +351,6 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
       viewMode: _viewMode,
       title: title.isEmpty ? null : title,
       titleFontSize: _titleFontSize,
-      flowId: '',
       language: PisanoConfig.language,
       customer: customer.isEmpty ? {} : customer,
       payload: payload,

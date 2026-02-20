@@ -48,7 +48,7 @@ dependencies:
   feedback_flutter_sdk:
     git:
       url: https://github.com/Pisano/feedback-flutter-sdk.git
-      ref: MT-15
+      ref: 0.0.17
 ```
 
 Then:
@@ -87,6 +87,7 @@ flutter run -d <device_id> --dart-define-from-file=pisano_defines.json
 
 - `PISANO_APP_ID`
 - `PISANO_ACCESS_KEY`
+- `PISANO_CODE` (survey/channel code from Pisano panel; required for init)
 - `PISANO_API_URL`
 - `PISANO_FEEDBACK_URL`
 - `PISANO_EVENT_URL` (optional; keep empty to disable)
@@ -99,6 +100,7 @@ flutter run -d <device_id> --dart-define-from-file=pisano_defines.json
 flutter run -d <device_id> \
   --dart-define=PISANO_APP_ID=YOUR_APP_ID \
   --dart-define=PISANO_ACCESS_KEY=YOUR_ACCESS_KEY \
+  --dart-define=PISANO_CODE=YOUR_CODE \
   --dart-define=PISANO_API_URL=YOUR_API_URL \
   --dart-define=PISANO_FEEDBACK_URL=YOUR_FEEDBACK_URL \
   --dart-define=PISANO_EVENT_URL= \
@@ -152,6 +154,7 @@ await feedbackSdk.init(
   '<feedbackUrl>',
   null, // eventUrl (optional)
   debugLogging: false,
+  code: '<surveyOrChannelCode>', // required; from Pisano panel
 );
 ```
 
@@ -159,12 +162,16 @@ In this sample, these values come from `--dart-define*` via `lib/pisano_config.d
 
 ### 3) Show widget
 
+- **`code` in `show()` is optional.**  
+  - If you **pass** `code`, the SDK shows the survey for that code.  
+  - If you **omit** it, the SDK uses the **boot code** from `init()` (default survey).
+- Example without `code` (uses boot survey):
+
 ```dart
 final callback = await feedbackSdk.show(
   viewMode: ViewMode.bottomSheetMode,
   title: 'We Value Your Feedback',
   titleFontSize: 20,
-  flowId: '', // empty => default flow
   language: 'tr',
   customer: {
     'externalId': 'CRM-12345',
@@ -172,9 +179,10 @@ final callback = await feedbackSdk.show(
   },
   payload: {'source': 'app', 'screen': 'home'},
 );
-
 print('show callback: $callback');
 ```
+
+- To show a **different** survey than the boot one, pass `code: 'OTHER_SURVEY_CODE'` in `show()`.
 
 ### 4) Track event
 
@@ -199,10 +207,12 @@ await feedbackSdk.clear();
 
 ### `FeedbackFlutterSdk`
 
-- **`Future<void> init(applicationId, accessKey, apiUrl, feedbackUrl, eventUrl, {debugLogging})`**
+- **`Future<void> init(applicationId, accessKey, apiUrl, feedbackUrl, eventUrl, {debugLogging, required code})`**
   - Must be called before `show` / `track`
   - `eventUrl` is optional (use `null` / empty in config to disable)
-- **`Future<FeedbackCallback> show({viewMode, title, titleFontSize, flowId, language, customer, payload})`**
+  - `code` is required (survey/channel code from Pisano panel)
+- **`Future<FeedbackCallback> show({viewMode, title, titleFontSize, code, language, customer, payload})`**
+  - **`code` (optional):** If you pass it, the SDK shows the survey for that code. If you omit it, the SDK uses the **boot code** from `init()` (default survey).
 - **`Future<FeedbackCallback> track(event, {language, customer, payload})`**
 - **`Future<void> clear()`**
 
@@ -239,7 +249,7 @@ Config is read from `--dart-define` via `lib/pisano_config.dart`.
 The “Get Feedback” button calls `feedbackSdk.show(...)` with:
 - `viewMode`
 - optional `title` + `titleFontSize`
-- optional `flowId` (empty = default flow)
+- optional **`code`**: if you pass it, the system shows the survey for that code; if you omit it, the system uses the **boot code** from `init()` (default survey).
 - optional `language`
 - `customer` map
 - `payload` map
@@ -299,11 +309,11 @@ If your flows use camera / photo library attachments, add these to `ios/Runner/I
 
 ### iOS CocoaPods
 
-If iOS build fails due to pods:
+If iOS build fails due to pods (or after upgrading to SDK 0.0.17+):
 
 ```bash
 cd ios
-LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install
+pod repo update && LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install
 cd ..
 ```
 

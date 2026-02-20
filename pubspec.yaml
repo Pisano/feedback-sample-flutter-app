@@ -18,9 +18,8 @@ dependencies:
   feedback_flutter_sdk:
     git:
       url: https://github.com/Pisano/feedback-flutter-sdk.git
-      # NOTE: keep this a *real* ref so `flutter pub get` works out of the box.
-      # Change to your release tag/commit when you ship.
-      ref: MT-15
+      # SDK 0.0.17+: init() requires code; show() uses optional code (flowId removed).
+      ref: 0.0.17
 
 dev_dependencies:
   flutter_test:
