@@ -61,11 +61,11 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "0.0.17"
-      resolved-ref: af9b76cd49c01fdf1a921372e846b2d5854bfcea
+      ref: "0.0.18"
+      resolved-ref: "3bfe24b53e98290eb3abc2b117bcb4b360cf0c69"
       url: "https://github.com/Pisano/feedback-flutter-sdk.git"
     source: git
-    version: "0.0.17"
+    version: "0.0.18"
   flutter:
     dependency: "direct main"
     description: flutter

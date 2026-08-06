@@ -18,8 +18,8 @@ dependencies:
   feedback_flutter_sdk:
     git:
       url: https://github.com/Pisano/feedback-flutter-sdk.git
-      # SDK 0.0.17+: init() requires code; show() uses optional code (flowId removed).
-      ref: 0.0.17
+      # SDK 0.0.18: native Android 1.3.33 + iOS Pisano 1.0.21 (no Dart API changes).
+      ref: 0.0.18
 
 dev_dependencies:
   flutter_test:

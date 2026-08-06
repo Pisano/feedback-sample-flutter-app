@@ -2,6 +2,8 @@
 
 Standalone Flutter sample app that uses `feedback_flutter_sdk` via a **remote git dependency** (NOT a local path).
 
+**SDK version in this sample:** `feedback_flutter_sdk` **0.0.18** (Android native **1.3.33**, iOS Pisano **1.0.21**)
+
 > This repository is a **sample app repo**. The **SDK source code is not in this repo**.
 
 This README is intentionally modeled after:
@@ -48,7 +50,7 @@ dependencies:
   feedback_flutter_sdk:
     git:
       url: https://github.com/Pisano/feedback-flutter-sdk.git
-      ref: 0.0.17
+      ref: 0.0.18
 ```
 
 Then:
