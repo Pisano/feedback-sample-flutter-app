@@ -2,7 +2,7 @@
 
 Standalone Flutter sample app that uses `feedback_flutter_sdk` via a **remote git dependency** (NOT a local path).
 
-**SDK version in this sample:** `feedback_flutter_sdk` **0.0.18** (Android native **1.3.33**, iOS Pisano **1.0.21**)
+**SDK version in this sample:** `feedback_flutter_sdk` **0.1.0** (native Pisano 2.0: Android `co.pisano:feedback` **2.0.0**, iOS Pisano **2.0.0**, iOS 15+)
 
 > This repository is a **sample app repo**. The **SDK source code is not in this repo**.
 
@@ -50,7 +50,7 @@ dependencies:
   feedback_flutter_sdk:
     git:
       url: https://github.com/Pisano/feedback-flutter-sdk.git
-      ref: 0.0.18
+      ref: 0.1.0
 ```
 
 Then:
@@ -149,7 +149,7 @@ Call once at app startup (or before the first `show()` / `track()`):
 ```dart
 final feedbackSdk = FeedbackFlutterSdk();
 
-await feedbackSdk.init(
+final booted = await feedbackSdk.init(
   '<applicationId>',
   '<accessKey>',
   '<apiUrl>',
@@ -158,6 +158,7 @@ await feedbackSdk.init(
   debugLogging: false,
   code: '<surveyOrChannelCode>', // required; from Pisano panel
 );
+// booted == false: wrong credentials or URL, or no connection.
 ```
 
 In this sample, these values come from `--dart-define*` via `lib/pisano_config.dart`.
@@ -175,10 +176,10 @@ final callback = await feedbackSdk.show(
   title: 'We Value Your Feedback',
   titleFontSize: 20,
   language: 'tr',
-  customer: {
-    'externalId': 'CRM-12345',
-    'phoneNumber': '+905001112233',
-  },
+  customer: const PisanoCustomer(
+    externalId: 'CRM-12345',
+    phoneNumber: '+905001112233',
+  ),
   payload: {'source': 'app', 'screen': 'home'},
 );
 print('show callback: $callback');
@@ -189,14 +190,14 @@ print('show callback: $callback');
 ### 4) Track event
 
 ```dart
-final callback = await feedbackSdk.track(
+final sent = await feedbackSdk.track(
   'view_promo',
   language: 'tr',
-  customer: {'externalId': 'CRM-12345'},
+  customer: const PisanoCustomer(externalId: 'CRM-12345'),
   payload: {'campaign': 'winter'},
 );
 
-print('track callback: $callback');
+print('track sent: $sent'); // true when the server accepted the event
 ```
 
 ### 5) Clear
@@ -209,13 +210,17 @@ await feedbackSdk.clear();
 
 ### `FeedbackFlutterSdk`
 
-- **`Future<void> init(applicationId, accessKey, apiUrl, feedbackUrl, eventUrl, {debugLogging, required code})`**
-  - Must be called before `show` / `track`
+- **`Future<bool> init(applicationId, accessKey, apiUrl, feedbackUrl, eventUrl, {debugLogging, required code})`**
+  - Must be called before `show` / `track`; completes with `true` when the SDK booted
   - `eventUrl` is optional (use `null` / empty in config to disable)
   - `code` is required (survey/channel code from Pisano panel)
-- **`Future<FeedbackCallback> show({viewMode, title, titleFontSize, code, language, customer, payload})`**
+- **`Future<FeedbackCallback> show({viewMode, title, titleFontSize, code, language, customer, payload, dismissOnDrag})`**
   - **`code` (optional):** If you pass it, the SDK shows the survey for that code. If you omit it, the SDK uses the **boot code** from `init()` (default survey).
-- **`Future<FeedbackCallback> track(event, {language, customer, payload})`**
+- **`Future<bool> track(event, {language, customer, payload})`** — `true` when the server accepted the event
+- **`Future<bool> healthCheck({code, language, customer, payload})`** — whether `show()` would open a survey now
+- **`Stream<PisanoEvent> events`** — `opened`, `feedbackSubmitted`, `redirectedToStore`, `closed` (with `closeReason`)
+- **`Future<void> setRequestTimeout(Duration)`** — network timeout of every request (default 30 s)
+- **`Future<void> setAutomaticStoreReview(bool)`**
 - **`Future<void> clear()`**
 
 ### `ViewMode`
@@ -225,15 +230,12 @@ await feedbackSdk.clear();
 
 ### `FeedbackCallback`
 
-Returned from `show()` and `track()` and can be used for UI/logging.
+The result of `show()`, reported once:
 
-Common values:
+- `sendFeedback`, `closed`, `none`
+- `displayOnce`, `preventMultipleFeedback`, `channelQuotaExceeded`, `channelPassive`, `displayRateLimited`
 
-- `opened`, `closed`, `outside`, `sendFeedback`
-- `displayOnce`, `preventMultipleFeedback`, `channelQuotaExceeded`, `none`
-
-> Note: This Flutter sample does not expose a dedicated `healthCheck()` function.  
-> To validate reachability, use the **“Remote connected” checklist** below (init + show/track callbacks).
+How the widget closed (close button, drag, outside tap…) is the `closed` event's `closeReason`, not a result. A second `show()` while a survey is open completes `none`.
 
 ## 🧠 How the SDK is used in this app
 
@@ -311,7 +313,7 @@ If your flows use camera / photo library attachments, add these to `ios/Runner/I
 
 ### iOS CocoaPods
 
-If iOS build fails due to pods (or after upgrading to SDK 0.0.17+):
+If iOS build fails due to pods (or after upgrading to SDK 0.1.0, which needs iOS 15 and Pisano 2.0):
 
 ```bash
 cd ios
@@ -333,7 +335,7 @@ Xcode “Run” does not automatically apply `--dart-define-from-file`. For loca
 
 ### Is there a `healthCheck()` API?
 
-Not in this Flutter SDK surface. Use init logs and the “Remote connected” checklist (and `show` / `track` callbacks) as a practical preflight.
+Yes, since 0.1.0: `await feedbackSdk.healthCheck()` tells whether `show()` would open a survey right now, without showing anything.
 
 ## ✅ Smoke tests
 

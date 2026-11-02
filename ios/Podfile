@@ -1,5 +1,5 @@
 # Uncomment this line to define a global platform for your project
-# platform :ios, '13.0'
+# platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -30,8 +30,9 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
 
-  # Until Pisano 1.0.21 is on CocoaPods trunk, resolve from Git tag
-  pod 'Pisano', :git => 'https://github.com/Pisano/pisano-ios.git', :tag => '1.0.21'
+  # feedback_flutter_sdk 0.1.0 needs Pisano ~> 2.0.0 (iOS 15+). Resolve it from
+  # the pisano-ios Git tag so the sample does not depend on CocoaPods trunk.
+  pod 'Pisano', :git => 'https://github.com/Pisano/pisano-ios.git', :tag => '2.0.0'
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do

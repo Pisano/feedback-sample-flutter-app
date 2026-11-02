@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:feedback_flutter_sdk/feedback_flutter_sdk.dart';
@@ -42,7 +43,7 @@ class _MyAppState extends State<MyApp> {
         return;
       }
 
-      await feedbackSdk.init(
+      final booted = await feedbackSdk.init(
         PisanoConfig.applicationId,
         PisanoConfig.accessKey,
         PisanoConfig.apiUrl,
@@ -53,10 +54,13 @@ class _MyAppState extends State<MyApp> {
       );
 
       setState(() {
-        _initialized = true;
-        _initError = null;
+        _initialized = booted;
+        _initError = booted
+            ? null
+            : 'Pisano init returned false (wrong credentials or URL, or no connection).\n'
+                'Config: ${PisanoConfig.debugSummary()}';
       });
-      log('Pisano init completed');
+      log('Pisano init completed: $booted');
     } catch (e) {
       setState(() {
         _initialized = false;
@@ -308,9 +312,29 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
   _TitleColor _titleColor = _TitleColor.blue;
 
   FeedbackCallback? _lastShowStatus;
+  bool? _lastTrackSent;
+  // Network timeout of every SDK request; 30 s is the default on both platforms.
+  int _requestTimeoutSeconds = 30;
+  final List<String> _events = [];
+  StreamSubscription<PisanoEvent>? _eventSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // Survey events arrive before the show() result.
+    _eventSubscription = widget.feedbackSdk.events.listen((event) {
+      final detail = event.type == PisanoEventType.closed
+          ? ' (${_enumName(event.closeReason)})'
+          : event.type == PisanoEventType.feedbackSubmitted && event.hasChat
+              ? ' (chat)'
+              : '';
+      setState(() => _events.add('${_enumName(event.type)}$detail'));
+    });
+  }
 
   @override
   void dispose() {
+    _eventSubscription?.cancel();
     _phoneController.dispose();
     _externalIdController.dispose();
     _customTitleController.dispose();
@@ -335,12 +359,10 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
       return;
     }
 
-    final customer = <String, dynamic>{
-      if (_phoneController.text.trim().isNotEmpty)
-        'phoneNumber': _phoneController.text.trim(),
-      if (_externalIdController.text.trim().isNotEmpty)
-        'externalId': _externalIdController.text.trim(),
-    };
+    final customer = PisanoCustomer(
+      phoneNumber: _textOrNull(_phoneController),
+      externalId: _textOrNull(_externalIdController),
+    );
 
     final payload = <String, String>{
       'source': 'flutter_remote_sample_app',
@@ -352,12 +374,13 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
       title: title.isEmpty ? null : title,
       titleFontSize: _titleFontSize,
       language: PisanoConfig.language,
-      customer: customer.isEmpty ? {} : customer,
+      customer: customer,
       payload: payload,
     );
 
     setState(() {
       _lastShowStatus = callback;
+      _events.clear();
     });
     log('show callback: $callback');
   }
@@ -365,16 +388,20 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
   Future<void> _onTrackPressed() async {
     if (!widget.initialized) return;
 
-    final callback = await widget.feedbackSdk.track(
+    final sent = await widget.feedbackSdk.track(
       'view_promo',
-      customer: {
-        if (_externalIdController.text.trim().isNotEmpty)
-          'externalId': _externalIdController.text.trim(),
-      },
+      customer: PisanoCustomer(externalId: _textOrNull(_externalIdController)),
       payload: const {'source': 'flutter_remote_sample_app'},
       language: PisanoConfig.language,
     );
-    log('track callback: $callback');
+    setState(() => _lastTrackSent = sent);
+    log('track sent: $sent');
+  }
+
+  Future<void> _onRequestTimeoutChanged(int? seconds) async {
+    if (seconds == null) return;
+    await widget.feedbackSdk.setRequestTimeout(Duration(seconds: seconds));
+    setState(() => _requestTimeoutSeconds = seconds);
   }
 
   Future<void> _onClearPressed() async {
@@ -544,9 +571,22 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
                         ),
                       ],
                     ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Request timeout'),
+                      trailing: DropdownButton<int>(
+                        value: _requestTimeoutSeconds,
+                        items: const [30, 5, 60]
+                            .map((s) => DropdownMenuItem(value: s, child: Text('$s s')))
+                            .toList(),
+                        onChanged: _onRequestTimeoutChanged,
+                      ),
+                    ),
                     const SizedBox(height: 14),
                     Text(
-                      'Status: Show: ${_lastShowStatus == null ? '-' : _enumName(_lastShowStatus)}',
+                      'Status: Show: ${_lastShowStatus == null ? '-' : _enumName(_lastShowStatus)}'
+                      ' · Track sent: ${_lastTrackSent ?? '-'}\n'
+                      'Events: ${_events.isEmpty ? '-' : _events.join(', ')}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: const Color(0xFF6B7280),
                           ),
@@ -585,6 +625,11 @@ Color _titleColorValue(_TitleColor c) {
     case _TitleColor.orange:
       return const Color(0xFFF59E0B);
   }
+}
+
+String? _textOrNull(TextEditingController c) {
+  final text = c.text.trim();
+  return text.isEmpty ? null : text;
 }
 
 String _enumName(Object? e) {
