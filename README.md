@@ -203,8 +203,10 @@ print('track sent: $sent'); // true when the server accepted the event
 ### 5) Clear
 
 ```dart
-await feedbackSdk.clear();
+await feedbackSdk.clear(); // on logout / user switch
 ```
+
+`clear()` closes an open survey and the native SDKs forget the boot settings: call `init()` again for the next user (until then `show()` completes `none`).
 
 ## 📚 API Reference
 
