@@ -1,8 +1,8 @@
 # Release Notes — feedback-sample-flutter-app
 
-## v0.1.0 (unreleased)
+## v1.0.0 (unreleased)
 
-Sample app on **feedback_flutter_sdk 0.1.0** (native Pisano 2.0).
+Sample app on **feedback_flutter_sdk 1.0.0** (native Pisano 2.0).
 
 - `init()` completes with a `bool`; the app shows an error when it is `false`.
 - `track()` completes with a `bool`; the status line shows whether the event was sent.

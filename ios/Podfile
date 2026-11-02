@@ -30,7 +30,7 @@ flutter_ios_podfile_setup
 target 'Runner' do
   use_frameworks!
 
-  # feedback_flutter_sdk 0.1.0 needs Pisano ~> 2.0.0 (iOS 15+). Resolve it from
+  # feedback_flutter_sdk 1.0.0 needs Pisano ~> 2.0.0 (iOS 15+). Resolve it from
   # the pisano-ios Git tag so the sample does not depend on CocoaPods trunk.
   pod 'Pisano', :git => 'https://github.com/Pisano/pisano-ios.git', :tag => '2.0.0'
 

@@ -2,7 +2,7 @@
 
 Standalone Flutter sample app that uses `feedback_flutter_sdk` via a **remote git dependency** (NOT a local path).
 
-**SDK version in this sample:** `feedback_flutter_sdk` **0.1.0** (native Pisano 2.0: Android `co.pisano:feedback` **2.0.0**, iOS Pisano **2.0.0**, iOS 15+)
+**SDK version in this sample:** `feedback_flutter_sdk` **1.0.0** (native Pisano 2.0: Android `co.pisano:feedback` **2.0.0**, iOS Pisano **2.0.0**, iOS 15+)
 
 > This repository is a **sample app repo**. The **SDK source code is not in this repo**.
 
@@ -50,7 +50,7 @@ dependencies:
   feedback_flutter_sdk:
     git:
       url: https://github.com/Pisano/feedback-flutter-sdk.git
-      ref: 0.1.0
+      ref: 1.0.0
 ```
 
 Then:
@@ -313,7 +313,7 @@ If your flows use camera / photo library attachments, add these to `ios/Runner/I
 
 ### iOS CocoaPods
 
-If iOS build fails due to pods (or after upgrading to SDK 0.1.0, which needs iOS 15 and Pisano 2.0):
+If iOS build fails due to pods (or after upgrading to SDK 1.0.0, which needs iOS 15 and Pisano 2.0):
 
 ```bash
 cd ios
@@ -335,7 +335,7 @@ Xcode “Run” does not automatically apply `--dart-define-from-file`. For loca
 
 ### Is there a `healthCheck()` API?
 
-Yes, since 0.1.0: `await feedbackSdk.healthCheck()` tells whether `show()` would open a survey right now, without showing anything.
+Yes, since 1.0.0: `await feedbackSdk.healthCheck()` tells whether `show()` would open a survey right now, without showing anything.
 
 ## ✅ Smoke tests
 

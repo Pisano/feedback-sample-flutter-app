@@ -18,8 +18,8 @@ dependencies:
   feedback_flutter_sdk:
     git:
       url: https://github.com/Pisano/feedback-flutter-sdk.git
-      # SDK 0.1.0: native Pisano 2.0 (Android co.pisano:feedback 2.0.0, iOS Pisano 2.0.0).
-      ref: 0.1.0
+      # SDK 1.0.0: native Pisano 2.0 (Android co.pisano:feedback 2.0.0, iOS Pisano 2.0.0).
+      ref: 1.0.0
 
 dev_dependencies:
   flutter_test:
