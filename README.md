@@ -259,6 +259,7 @@ The “Get Feedback” button calls `feedbackSdk.show(...)` with:
 - optional `language`
 - `customer` map
 - `payload` map
+- `dismissOnDrag` (bottom sheet only): the **Dismiss on drag** switch
 
 ### Tracking
 
@@ -266,7 +267,7 @@ The “Track” button calls `feedbackSdk.track('view_promo', ...)`.
 
 ### Clearing
 
-The “Clear” button calls `feedbackSdk.clear()`.
+The “Clear” button calls `feedbackSdk.clear()`, then `init()` again: `clear()` makes the native SDKs forget the boot settings, so without a new `init()` the next `show()` completes `none`. The status line shows the result of that `init()`.
 
 ## ✅ “Remote connected” checklist
 
