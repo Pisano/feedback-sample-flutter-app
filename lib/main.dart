@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer';
 
 import 'package:feedback_flutter_sdk/feedback_flutter_sdk.dart';
@@ -28,7 +29,7 @@ class _MyAppState extends State<MyApp> {
     initPlatformState();
   }
 
-  Future<void> initPlatformState() async {
+  Future<bool> initPlatformState() async {
     try {
       log('PisanoConfig: ${PisanoConfig.debugSummary()}');
 
@@ -39,10 +40,10 @@ class _MyAppState extends State<MyApp> {
               'PisanoConfig is not set. Provide values via --dart-define-from-file / --dart-define.\n'
               '${PisanoConfig.debugSummary()}';
         });
-        return;
+        return false;
       }
 
-      await feedbackSdk.init(
+      final booted = await feedbackSdk.init(
         PisanoConfig.applicationId,
         PisanoConfig.accessKey,
         PisanoConfig.apiUrl,
@@ -53,10 +54,14 @@ class _MyAppState extends State<MyApp> {
       );
 
       setState(() {
-        _initialized = true;
-        _initError = null;
+        _initialized = booted;
+        _initError = booted
+            ? null
+            : 'Pisano init returned false (wrong credentials or URL, or no connection).\n'
+                'Config: ${PisanoConfig.debugSummary()}';
       });
-      log('Pisano init completed');
+      log('Pisano init completed: $booted');
+      return booted;
     } catch (e) {
       setState(() {
         _initialized = false;
@@ -66,9 +71,8 @@ class _MyAppState extends State<MyApp> {
             'Tip: Stop the app completely and re-run with --dart-define-from-file=pisano_defines.json';
       });
       log('Pisano init failed: $e');
+      return false;
     }
-
-    if (!mounted) return;
   }
 
   @override
@@ -100,7 +104,7 @@ class HomeScreen extends StatelessWidget {
 
   final bool initialized;
   final String? initError;
-  final Future<void> Function() onRetryInit;
+  final Future<bool> Function() onRetryInit;
   final FeedbackFlutterSdk feedbackSdk;
 
   @override
@@ -292,7 +296,7 @@ class FeedbackFormScreen extends StatefulWidget {
   final FeedbackFlutterSdk feedbackSdk;
   final bool initialized;
   final String? initError;
-  final Future<void> Function() onRetryInit;
+  final Future<bool> Function() onRetryInit;
 
   @override
   State<FeedbackFormScreen> createState() => _FeedbackFormScreenState();
@@ -304,13 +308,37 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
   final _customTitleController = TextEditingController();
 
   ViewMode _viewMode = ViewMode.defaultMode;
+  bool _dismissOnDrag = false;
   _TitleFont _titleFont = _TitleFont.title;
   _TitleColor _titleColor = _TitleColor.blue;
 
+  // clear() makes the SDK forget init, so the form tracks it after the first push.
+  late bool _ready = widget.initialized;
   FeedbackCallback? _lastShowStatus;
+  bool? _lastTrackSent;
+  String? _clearStatus;
+  // Network timeout of every SDK request; 30 s is the default on both platforms.
+  int _requestTimeoutSeconds = 30;
+  final List<String> _events = [];
+  StreamSubscription<PisanoEvent>? _eventSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    // Survey events arrive before the show() result.
+    _eventSubscription = widget.feedbackSdk.events.listen((event) {
+      final detail = event.type == PisanoEventType.closed
+          ? ' (${_enumName(event.closeReason)})'
+          : event.type == PisanoEventType.feedbackSubmitted && event.hasChat
+              ? ' (chat)'
+              : '';
+      setState(() => _events.add('${_enumName(event.type)}$detail'));
+    });
+  }
 
   @override
   void dispose() {
+    _eventSubscription?.cancel();
     _phoneController.dispose();
     _externalIdController.dispose();
     _customTitleController.dispose();
@@ -326,8 +354,14 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
     }
   }
 
+  Future<void> _retryInit() async {
+    final booted = await widget.onRetryInit();
+    if (!mounted) return;
+    setState(() => _ready = booted);
+  }
+
   Future<void> _onGetFeedbackPressed() async {
-    if (!widget.initialized) {
+    if (!_ready) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('SDK not initialized yet.')),
@@ -335,52 +369,65 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
       return;
     }
 
-    final customer = <String, dynamic>{
-      if (_phoneController.text.trim().isNotEmpty)
-        'phoneNumber': _phoneController.text.trim(),
-      if (_externalIdController.text.trim().isNotEmpty)
-        'externalId': _externalIdController.text.trim(),
-    };
+    final customer = PisanoCustomer(
+      phoneNumber: _textOrNull(_phoneController),
+      externalId: _textOrNull(_externalIdController),
+    );
 
     final payload = <String, String>{
       'source': 'flutter_remote_sample_app',
     };
 
     final title = _customTitleController.text.trim();
+    // Survey events arrive before the show() result: clear the list first.
+    setState(_events.clear);
     final callback = await widget.feedbackSdk.show(
       viewMode: _viewMode,
       title: title.isEmpty ? null : title,
       titleFontSize: _titleFontSize,
       language: PisanoConfig.language,
-      customer: customer.isEmpty ? {} : customer,
+      customer: customer,
       payload: payload,
+      dismissOnDrag: _dismissOnDrag,
     );
 
-    setState(() {
-      _lastShowStatus = callback;
-    });
+    setState(() => _lastShowStatus = callback);
     log('show callback: $callback');
   }
 
   Future<void> _onTrackPressed() async {
-    if (!widget.initialized) return;
+    if (!_ready) return;
 
-    final callback = await widget.feedbackSdk.track(
+    final sent = await widget.feedbackSdk.track(
       'view_promo',
-      customer: {
-        if (_externalIdController.text.trim().isNotEmpty)
-          'externalId': _externalIdController.text.trim(),
-      },
+      customer: PisanoCustomer(externalId: _textOrNull(_externalIdController)),
       payload: const {'source': 'flutter_remote_sample_app'},
       language: PisanoConfig.language,
     );
-    log('track callback: $callback');
+    setState(() => _lastTrackSent = sent);
+    log('track sent: $sent');
   }
 
+  Future<void> _onRequestTimeoutChanged(int? seconds) async {
+    if (seconds == null) return;
+    await widget.feedbackSdk.setRequestTimeout(Duration(seconds: seconds));
+    setState(() => _requestTimeoutSeconds = seconds);
+  }
+
+  // clear() closes an open survey and the SDK forgets init: init again so the
+  // next show() opens a survey instead of completing none.
   Future<void> _onClearPressed() async {
     await widget.feedbackSdk.clear();
     setState(() {
+      _ready = false;
       _lastShowStatus = null;
+      _clearStatus = 'cleared, init again...';
+    });
+    final booted = await widget.onRetryInit();
+    if (!mounted) return;
+    setState(() {
+      _ready = booted;
+      _clearStatus = 'cleared, init again: $booted';
     });
   }
 
@@ -412,10 +459,10 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (!widget.initialized)
+                    if (!_ready)
                       _InitBanner(
                         initError: widget.initError,
-                        onRetry: widget.onRetryInit,
+                        onRetry: _retryInit,
                       ),
                     const SizedBox(height: 12),
                     TextField(
@@ -459,6 +506,14 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
                       selected: {_viewMode},
                       onSelectionChanged: (s) =>
                           setState(() => _viewMode = s.first),
+                    ),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Dismiss on drag (bottom sheet)'),
+                      value: _dismissOnDrag,
+                      onChanged: _viewMode == ViewMode.bottomSheetMode
+                          ? (v) => setState(() => _dismissOnDrag = v)
+                          : null,
                     ),
                     const SizedBox(height: 18),
                     Text('Custom Title Color', style: headerStyle),
@@ -544,9 +599,23 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
                         ),
                       ],
                     ),
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Request timeout'),
+                      trailing: DropdownButton<int>(
+                        value: _requestTimeoutSeconds,
+                        items: const [30, 5, 60]
+                            .map((s) => DropdownMenuItem(value: s, child: Text('$s s')))
+                            .toList(),
+                        onChanged: _onRequestTimeoutChanged,
+                      ),
+                    ),
                     const SizedBox(height: 14),
                     Text(
-                      'Status: Show: ${_lastShowStatus == null ? '-' : _enumName(_lastShowStatus)}',
+                      'Status: Show: ${_lastShowStatus == null ? '-' : _enumName(_lastShowStatus)}'
+                      ' · Track sent: ${_lastTrackSent ?? '-'}'
+                      '${_clearStatus == null ? '' : ' · Clear: $_clearStatus'}\n'
+                      'Events: ${_events.isEmpty ? '-' : _events.join(', ')}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: const Color(0xFF6B7280),
                           ),
@@ -585,6 +654,11 @@ Color _titleColorValue(_TitleColor c) {
     case _TitleColor.orange:
       return const Color(0xFFF59E0B);
   }
+}
+
+String? _textOrNull(TextEditingController c) {
+  final text = c.text.trim();
+  return text.isEmpty ? null : text;
 }
 
 String _enumName(Object? e) {

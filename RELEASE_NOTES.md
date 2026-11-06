@@ -1,5 +1,19 @@
 # Release Notes — feedback-sample-flutter-app
 
+## v1.0.0 (unreleased)
+
+Sample app on **feedback_flutter_sdk 1.0.0** (native Pisano 2.0).
+
+- `init()` completes with a `bool`; the app shows an error when it is `false`.
+- `track()` completes with a `bool`; the status line shows whether the event was sent.
+- The customer is a `PisanoCustomer`.
+- Survey events (`events` stream) are shown on the form screen, for the last `show()`.
+- **Clear** calls `init()` again, since `clear()` makes the SDK forget the boot settings.
+- New **Dismiss on drag** switch for the bottom sheet.
+- New **Request timeout** picker (`setRequestTimeout`, default 30 s).
+- iOS 15 minimum; the Podfile resolves `Pisano` 2.0.0 from the `pisano-ios` git tag.
+
+
 ## v0.0.18
 
 ### Overview
