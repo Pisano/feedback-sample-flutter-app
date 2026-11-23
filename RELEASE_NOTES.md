@@ -1,6 +1,6 @@
 # Release Notes — feedback-sample-flutter-app
 
-## v1.0.0 (unreleased)
+## v1.0.0 — 2026-11-23
 
 Sample app on **feedback_flutter_sdk 1.0.0** (native Pisano 2.0).
 
@@ -11,7 +11,7 @@ Sample app on **feedback_flutter_sdk 1.0.0** (native Pisano 2.0).
 - **Clear** calls `init()` again, since `clear()` makes the SDK forget the boot settings.
 - New **Dismiss on drag** switch for the bottom sheet.
 - New **Request timeout** picker (`setRequestTimeout`, default 30 s).
-- iOS 15 minimum; the Podfile resolves `Pisano` 2.0.0 from the `pisano-ios` git tag.
+- iOS 15 minimum; `Pisano` 2.0.0 comes from CocoaPods trunk (no git pin in the Podfile).
 
 
 ## v0.0.18
